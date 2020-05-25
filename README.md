@@ -52,3 +52,9 @@ sh train_ddi.sh configs/base.json base
 
 See [inference.ipynb](./inference.ipynb)
 
+
+## Acknowledgements
+Our implementation is highly affected by the following repos:
+* [WaveGlow](https://github.com/NVIDIA/waveglow)
+* [Tensor2Tensor](https://github.com/tensorflow/tensor2tensor)
+* [Mellotron](https://github.com/NVIDIA/mellotron)
