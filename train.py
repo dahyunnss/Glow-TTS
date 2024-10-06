@@ -43,6 +43,7 @@ def main():
   os.environ['MASTER_ADDR'] = 'localhost'
   os.environ['MASTER_PORT'] = '8000' 
 
+
   hps = utils.get_hparams(args.config)
   hps = update_seed_in_config(hps, args.seed)
   
@@ -66,7 +67,12 @@ def train_and_eval(rank, n_gpus, hps, model_dir):
  #Dataset & DataLoader Settings
   train_dataset = TextMelLoader(hps.data.training_files, hps.data)
   train_sampler = torch.utils.data.distributed.DistributedSampler(
-      train_dataset, num_replicas=n_gpus, rank=rank, shuffle=True)
+
+      train_dataset,
+      num_replicas=n_gpus,
+      rank=rank,
+      shuffle=True)
+  
   collate_fn = TextMelCollate(1)
   train_loader = DataLoader(train_dataset, num_workers=8, shuffle=False,
       batch_size=hps.train.batch_size, pin_memory=True,
