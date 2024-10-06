@@ -3,7 +3,6 @@ cimport numpy as np
 cimport cython
 from cython.parallel import prange
 
-
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef void maximum_path_each(int[:,::1] path, float[:,::1] value, int t_x, int t_y, float max_neg_val) nogil:

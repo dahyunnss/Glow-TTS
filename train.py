@@ -10,6 +10,7 @@ from torch.utils.tensorboard import SummaryWriter
 import torch.multiprocessing as mp
 import torch.distributed as dist
 from apex.parallel import DistributedDataParallel as DDP
+#from torch.nn.parallel import DistributedDataParallel as DDP
 from apex import amp
 
 from data_utils import TextMelLoader, TextMelCollate
@@ -21,20 +22,34 @@ from text.symbols import symbols
 
 global_step = 0
 
+def update_seed_in_config(hps, seed):
+    """주어진 시드 값을 config에 업데이트."""
+    hps.train.seed = seed
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    return hps
 
 def main():
   """Assume Single Node Multi GPUs Training Only"""
   assert torch.cuda.is_available(), "CPU training is not allowed."
 
+  parser = argparse.ArgumentParser()
+  parser.add_argument('-c', '--config', type=str, required=True, help="Path to the config file")
+  parser.add_argument('-m', '--modeldir', type=str, required=True, help="Path to the model directory")
+  parser.add_argument('--seed', type=int, required=True, help="Seed for the experiment")  # 시드 추가
+  args = parser.parse_args()
+
   n_gpus = torch.cuda.device_count()
   os.environ['MASTER_ADDR'] = 'localhost'
-  os.environ['MASTER_PORT'] = '80000'
+  os.environ['MASTER_PORT'] = '8000' 
 
-  hps = utils.get_hparams()
+  hps = utils.get_hparams(args.config)
+  hps = update_seed_in_config(hps, args.seed)
+  
   mp.spawn(train_and_eval, nprocs=n_gpus, args=(n_gpus, hps,))
 
 
-def train_and_eval(rank, n_gpus, hps):
+def train_and_eval(rank, n_gpus, hps, model_dir):
   global global_step
   if rank == 0:
     logger = utils.get_logger(hps.model_dir)
@@ -44,25 +59,26 @@ def train_and_eval(rank, n_gpus, hps):
     writer_eval = SummaryWriter(log_dir=os.path.join(hps.model_dir, "eval"))
 
   dist.init_process_group(backend='nccl', init_method='env://', world_size=n_gpus, rank=rank)
-  torch.manual_seed(hps.train.seed)
+  torch.manual_seed(hps.train.seed)  # 시드 적용
+  torch.cuda.manual_seed(hps.train.seed)
   torch.cuda.set_device(rank)
 
+ #Dataset & DataLoader Settings
   train_dataset = TextMelLoader(hps.data.training_files, hps.data)
   train_sampler = torch.utils.data.distributed.DistributedSampler(
-      train_dataset,
-      num_replicas=n_gpus,
-      rank=rank,
-      shuffle=True)
+      train_dataset, num_replicas=n_gpus, rank=rank, shuffle=True)
   collate_fn = TextMelCollate(1)
   train_loader = DataLoader(train_dataset, num_workers=8, shuffle=False,
       batch_size=hps.train.batch_size, pin_memory=True,
       drop_last=True, collate_fn=collate_fn, sampler=train_sampler)
+  
   if rank == 0:
     val_dataset = TextMelLoader(hps.data.validation_files, hps.data)
     val_loader = DataLoader(val_dataset, num_workers=8, shuffle=False,
         batch_size=hps.train.batch_size, pin_memory=True,
         drop_last=True, collate_fn=collate_fn)
 
+  # 모델 및 옵티마이저 초기화
   generator = models.FlowGenerator(
       n_vocab=len(symbols), 
       out_channels=hps.data.n_mel_channels, 
@@ -136,9 +152,8 @@ def train(rank, epoch, hps, generator, optimizer_g, train_loader, logger, writer
           writer=writer,
           global_step=global_step, 
           images={"y_org": utils.plot_spectrogram_to_numpy(y[0].data.cpu().numpy()), 
-            "y_gen": utils.plot_spectrogram_to_numpy(y_gen[0].data.cpu().numpy()), 
-            "attn": utils.plot_alignment_to_numpy(attn[0,0].data.cpu().numpy()),
-            },
+                  "y_gen": utils.plot_spectrogram_to_numpy(y_gen[0].data.cpu().numpy()), 
+                  "attn": utils.plot_alignment_to_numpy(attn[0,0].data.cpu().numpy()),},
           scalars=scalar_dict)
     global_step += 1
   

@@ -1,6 +1,3 @@
-
-# Glow-TTS
-
 # Glow-TTS
 
 ## 1. Environments we use
