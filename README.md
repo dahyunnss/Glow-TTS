@@ -1,4 +1,3 @@
-# Glow-TTS
 # Glow-TTS: A Generative Flow for Text-to-Speech via Monotonic Alignment Search
 
 ### Jaehyeon Kim, Sungwon Kim, Jungil Kong, and Sungroh Yoon

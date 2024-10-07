@@ -51,6 +51,15 @@ def main():
 
 
 def train_and_eval(rank, n_gpus, hps, model_dir):
+  n_gpus = torch.cuda.device_count()
+  os.environ['MASTER_ADDR'] = 'localhost'
+  os.environ['MASTER_PORT'] = '80000' #change
+
+  hps = utils.get_hparams()
+  mp.spawn(train_and_eval, nprocs=n_gpus, args=(n_gpus, hps,))
+
+
+def train_and_eval(rank, n_gpus, hps):
   global global_step
   if rank == 0:
     logger = utils.get_logger(hps.model_dir)
@@ -60,6 +69,7 @@ def train_and_eval(rank, n_gpus, hps, model_dir):
     writer_eval = SummaryWriter(log_dir=os.path.join(hps.model_dir, "eval"))
 
   dist.init_process_group(backend='nccl', init_method='env://', world_size=n_gpus, rank=rank)
+
   torch.manual_seed(hps.train.seed)  # 시드 적용
   torch.cuda.manual_seed(hps.train.seed)
   torch.cuda.set_device(rank)
@@ -67,7 +77,6 @@ def train_and_eval(rank, n_gpus, hps, model_dir):
  #Dataset & DataLoader Settings
   train_dataset = TextMelLoader(hps.data.training_files, hps.data)
   train_sampler = torch.utils.data.distributed.DistributedSampler(
-
       train_dataset,
       num_replicas=n_gpus,
       rank=rank,
@@ -77,7 +86,7 @@ def train_and_eval(rank, n_gpus, hps, model_dir):
   train_loader = DataLoader(train_dataset, num_workers=8, shuffle=False,
       batch_size=hps.train.batch_size, pin_memory=True,
       drop_last=True, collate_fn=collate_fn, sampler=train_sampler)
-  
+
   if rank == 0:
     val_dataset = TextMelLoader(hps.data.validation_files, hps.data)
     val_loader = DataLoader(val_dataset, num_workers=8, shuffle=False,
@@ -159,6 +168,7 @@ def train(rank, epoch, hps, generator, optimizer_g, train_loader, logger, writer
           images={"y_org": utils.plot_spectrogram_to_numpy(y[0].data.cpu().numpy()), 
                   "y_gen": utils.plot_spectrogram_to_numpy(y_gen[0].data.cpu().numpy()), 
                   "attn": utils.plot_alignment_to_numpy(attn[0,0].data.cpu().numpy()),},
+
           scalars=scalar_dict)
     global_step += 1
   

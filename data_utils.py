@@ -31,6 +31,7 @@ class TextMelLoader(torch.utils.data.Dataset):
             hparams.filter_length, hparams.hop_length, hparams.win_length,
             hparams.n_mel_channels, hparams.sampling_rate, hparams.mel_fmin,
             hparams.mel_fmax)
+
         #random.seed(1234)
         #random.shuffle(self.audiopaths_and_text)
 
@@ -65,6 +66,7 @@ class TextMelLoader(torch.utils.data.Dataset):
         """
         with open(filename, 'w') as f:
             json.dump(split_data, f, indent=4)
+            
             
     def get_mel_text_pair(self, audiopath_and_text):
         # separate filename and text
@@ -150,85 +152,6 @@ class TextMelCollate():
         return text_padded, input_lengths, mel_padded, output_lengths
 
 
-"""Multi speaker version"""
-# class TextMelSpeakerLoader(torch.utils.data.Dataset):
-#     """
-#         1) loads audio, speaker_id, text pairs
-#         2) normalizes text and converts them to sequences of one-hot vectors
-#         3) computes mel-spectrograms from audio files.
-#     """
-#     def __init__(self, audiopaths_sid_text, hparams):
-#         self.audiopaths_sid_text = load_filepaths_and_text(audiopaths_sid_text)
-#         self.text_cleaners = hparams.text_cleaners
-#         self.max_wav_value = hparams.max_wav_value
-#         self.sampling_rate = hparams.sampling_rate
-#         self.load_mel_from_disk = hparams.load_mel_from_disk
-#         self.add_noise = hparams.add_noise
-#         self.add_space = hparams.add_space
-#         self.min_text_len = getattr(hparams, "min_text_len", 1)
-#         self.max_text_len = getattr(hparams, "max_text_len", 190)
-#         if getattr(hparams, "cmudict_path", None) is not None:
-#           self.cmudict = cmudict.CMUDict(hparams.cmudict_path)
-#         self.stft = commons.TacotronSTFT(
-#             hparams.filter_length, hparams.hop_length, hparams.win_length,
-#             hparams.n_mel_channels, hparams.sampling_rate, hparams.mel_fmin,
-#             hparams.mel_fmax)
-
-#         self._filter_text_len()
-#         random.seed(1234)
-#         random.shuffle(self.audiopaths_sid_text)
-
-#     def _filter_text_len(self):
-#       audiopaths_sid_text_new = []
-#       for audiopath, sid, text in self.audiopaths_sid_text:
-#         if self.min_text_len <= len(text) and len(text) <= self.max_text_len:
-#           audiopaths_sid_text_new.append([audiopath, sid, text])
-#       self.audiopaths_sid_text = audiopaths_sid_text_new
-
-#     def get_mel_text_speaker_pair(self, audiopath_sid_text):
-#         # separate filename, speaker_id and text
-#         audiopath, sid, text = audiopath_sid_text[0], audiopath_sid_text[1], audiopath_sid_text[2]
-#         text = self.get_text(text)
-#         mel = self.get_mel(audiopath)
-#         sid = self.get_sid(sid)
-#         return (text, mel, sid)
-
-#     def get_mel(self, filename):
-#         if not self.load_mel_from_disk:
-#             audio, sampling_rate = load_wav_to_torch(filename)
-#             if sampling_rate != self.stft.sampling_rate:
-#                 raise ValueError("{} {} SR doesn't match target {} SR".format(
-#                     sampling_rate, self.stft.sampling_rate))
-#             if self.add_noise:
-#                 audio = audio + torch.rand_like(audio)
-#             audio_norm = audio / self.max_wav_value
-#             audio_norm = audio_norm.unsqueeze(0)
-#             melspec = self.stft.mel_spectrogram(audio_norm)
-#             melspec = torch.squeeze(melspec, 0)
-#         else:
-#             melspec = torch.from_numpy(np.load(filename))
-#             assert melspec.size(0) == self.stft.n_mel_channels, (
-#                 'Mel dimension mismatch: given {}, expected {}'.format(
-#                     melspec.size(0), self.stft.n_mel_channels))
-
-#         return melspec
-
-#     def get_text(self, text):
-#         if self.add_space:
-#           text = " " + text.strip() + " "
-#         text_norm = torch.IntTensor(
-#             text_to_sequence(text, self.text_cleaners, getattr(self, "cmudict", None)))
-#         return text_norm
-
-#     def get_sid(self, sid):
-#         sid = torch.IntTensor([int(sid)])
-#         return sid
-
-#     def __getitem__(self, index):
-#         return self.get_mel_text_speaker_pair(self.audiopaths_sid_text[index])
-
-#     def __len__(self):
-#         return len(self.audiopaths_sid_text)
 class TextMelSpeakerLoader(torch.utils.data.Dataset):
     """
         1) loads audio, speaker_id, text pairs
@@ -352,5 +275,4 @@ class TextMelSpeakerCollate():
             sid[i] = batch[ids_sorted_decreasing[i]][2]
 
         return text_padded, input_lengths, mel_padded, output_lengths, sid
-
 

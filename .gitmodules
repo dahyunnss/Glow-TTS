@@ -1,7 +1,10 @@
 [submodule "waveglow"]
 	path = waveglow
 	url = https://github.com/NVIDIA/waveglow.git
+<<<<<<< HEAD
 
 [submodule "hifi-gan"]
 	path = hifi-gan
 	url = https://github.com/jik876/hifi-gan.git
+=======
+
