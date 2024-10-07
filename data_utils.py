@@ -31,42 +31,8 @@ class TextMelLoader(torch.utils.data.Dataset):
             hparams.filter_length, hparams.hop_length, hparams.win_length,
             hparams.n_mel_channels, hparams.sampling_rate, hparams.mel_fmin,
             hparams.mel_fmax)
-
-        #random.seed(1234)
-        #random.shuffle(self.audiopaths_and_text)
-
-    def split_dataset(self, train_ratio=0.75, test_ratio=0.2, num_seeds=10):
-        total_data_len = len(self.audiopaths_and_text)
-        test_data_len = int(total_data_len * test_ratio)
-        train_val_data_len = total_data_len - test_data_len
-        train_data_len = int(train_val_data_len * train_ratio)
-        val_data_len = train_val_data_len - train_data_len
-
-        split_results = {}
-        
-        for i in range(num_seeds):
-            random.seed(i)
-            random.shuffle(self.audiopaths_and_text)
-
-            train_set = self.audiopaths_and_text[:train_data_len]
-            val_set = self.audiopaths_and_text[train_data_len:train_data_len + val_data_len]
-            test_set = self.audiopaths_and_text[train_data_len + val_data_len:]
-
-            split_results[f'seed_{i}'] = {
-                'Train_Set': train_set,
-                'Validation_Set': val_set,
-                'Test_Set': test_set
-            }
-
-        return split_results
-    
-    def save_splits_to_json(self, split_data, filename="dataset_splits.json"):
-        """
-        JSON 파일로 시드별 데이터셋을 저장하는 함수
-        """
-        with open(filename, 'w') as f:
-            json.dump(split_data, f, indent=4)
-            
+        random.seed(1234) #시드 수정
+        random.shuffle(self.audiopaths_and_text)
             
     def get_mel_text_pair(self, audiopath_and_text):
         # separate filename and text
